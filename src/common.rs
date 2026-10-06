@@ -708,11 +708,7 @@ async fn test_nat_type_() -> ResultType<bool> {
     let server1 = Config::get_rendezvous_server();
     let server2 = crate::increase_port(&server1, -1);
     let mut msg_out = RendezvousMessage::new();
-    let serial = Config::get_serial();
-    msg_out.set_test_nat_request(TestNatRequest {
-        serial,
-        ..Default::default()
-    });
+    msg_out.set_test_nat_request(TestNatRequest::default());
     let mut port1 = 0;
     let mut port2 = 0;
     let mut local_addr = None;
@@ -736,13 +732,6 @@ async fn test_nat_type_() -> ResultType<bool> {
                     port1 = tnr.port;
                 } else {
                     port2 = tnr.port;
-                }
-                if let Some(cu) = tnr.cu.as_ref() {
-                    Config::set_option(
-                        "rendezvous-servers".to_owned(),
-                        cu.rendezvous_servers.join(","),
-                    );
-                    Config::set_serial(cu.serial);
                 }
             }
         } else {
