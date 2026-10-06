@@ -920,6 +920,11 @@ jobs:
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
+      - name: Schuetz-Digital ad-hoc codesign
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          codesign --force --deep -s - ./flutter/build/macos/Build/Products/Release/RustDesk.app
+
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
