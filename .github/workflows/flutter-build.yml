@@ -390,8 +390,11 @@ jobs:
         # is x64 / ARM64; the produced Package.msi is globbed since its bin/<platform>/ dir varies.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
+          # Schuetz: the MSI must use the same app name as the binary (see schuetz-branding.sh).
+          cp -r ./rustdesk ./rustdesk-msi
+          mv ./rustdesk-msi/rustdesk.exe ./rustdesk-msi/SchuetzSupport.exe
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp -d ../../rustdesk-msi --app-name SchuetzSupport
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
