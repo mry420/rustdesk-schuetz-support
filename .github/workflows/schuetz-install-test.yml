@@ -4,16 +4,19 @@ on:
   workflow_dispatch:
   push:
     branches: [claude/magical-allen-ay9qy4]
-    paths: [.github/workflows/schuetz-install-test.yml]
+    paths: [.github/schuetz-test-trigger]
+
+env:
+  TAG: claude/magical-allen-ay9qy4
 
 jobs:
   msi:
     runs-on: windows-2022
     steps:
-      - name: Download MSI from release schuetz-branding
+      - name: Download MSI from release ${{ env.TAG }}
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/schuetz-branding/rustdesk-1.5.0-x86_64.msi" -OutFile setup.msi
+          Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/rustdesk-1.5.0-x86_64.msi" -OutFile setup.msi
           Get-FileHash setup.msi
       - name: Install MSI silently
         shell: pwsh
@@ -48,10 +51,10 @@ jobs:
   exe:
     runs-on: windows-2022
     steps:
-      - name: Download EXE from release schuetz-branding
+      - name: Download EXE from release ${{ env.TAG }}
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/schuetz-branding/rustdesk-1.5.0-x86_64.exe" -OutFile setup.exe
+          Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/rustdesk-1.5.0-x86_64.exe" -OutFile setup.exe
           Get-FileHash setup.exe
       - name: Install via the app's own installer (same code as "Accept and install")
         shell: pwsh
