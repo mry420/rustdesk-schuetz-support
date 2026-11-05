@@ -1,0 +1,74 @@
+name: Schuetz Install Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/magical-allen-ay9qy4]
+    paths: [.github/workflows/schuetz-install-test.yml]
+
+jobs:
+  msi:
+    runs-on: windows-2022
+    steps:
+      - name: Download MSI from release schuetz-branding
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/schuetz-branding/rustdesk-1.5.0-x86_64.msi" -OutFile setup.msi
+          Get-FileHash setup.msi
+      - name: Install MSI silently
+        shell: pwsh
+        run: |
+          $p = Start-Process msiexec.exe -ArgumentList '/i','setup.msi','/qn','/norestart','/l*v','msi.log' -Wait -PassThru
+          "msiexec exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { Get-Content msi.log -Tail 80; exit 1 }
+      - name: Check installation
+        shell: pwsh
+        run: |
+          Start-Sleep 10
+          Get-ChildItem "C:\Program Files\SchuetzSupport" | Select-Object Name
+          if (-not (Test-Path "C:\Program Files\SchuetzSupport\SchuetzSupport.exe")) { "EXE MISSING"; exit 1 }
+          $s = Get-CimInstance Win32_Service -Filter "Name='SchuetzSupport'"
+          if (-not $s) { "SERVICE MISSING"; exit 1 }
+          $s | Format-List Name, State, StartMode, PathName
+          if ($s.State -ne 'Running' -or $s.StartMode -ne 'Auto') { "SERVICE NOT RUNNING/AUTO"; exit 1 }
+          Get-ItemProperty "HKLM:\Software\SchuetzSupport\InstallState\SchuetzSupport" | Format-List InstallLocation, WindowsInstaller
+      - name: Service survives restart
+        shell: pwsh
+        run: |
+          Restart-Service SchuetzSupport -Force
+          Start-Sleep 10
+          (Get-Service SchuetzSupport).Status
+          if ((Get-Service SchuetzSupport).Status -ne 'Running') { exit 1 }
+      - name: Logs
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse "C:\Windows\ServiceProfiles\LocalService\AppData\Roaming\SchuetzSupport\log", "C:\Windows\System32\config\systemprofile\AppData\Roaming\SchuetzSupport\log" -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | ForEach-Object { "== $($_.FullName)"; Get-Content $_.FullName -Tail 40 }
+
+  exe:
+    runs-on: windows-2022
+    steps:
+      - name: Download EXE from release schuetz-branding
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/schuetz-branding/rustdesk-1.5.0-x86_64.exe" -OutFile setup.exe
+          Get-FileHash setup.exe
+      - name: Install via the app's own installer (same code as "Accept and install")
+        shell: pwsh
+        run: |
+          Start-Process .\setup.exe -ArgumentList '--silent-install'
+          for ($i = 0; $i -lt 36; $i++) {
+            Start-Sleep 5
+            $s = Get-Service SchuetzSupport -ErrorAction SilentlyContinue
+            if ($s -and $s.Status -eq 'Running') { break }
+          }
+          Get-ChildItem "C:\Program Files\SchuetzSupport" -ErrorAction SilentlyContinue | Select-Object Name
+          $s = Get-CimInstance Win32_Service -Filter "Name='SchuetzSupport'"
+          if (-not $s) { "SERVICE MISSING"; exit 1 }
+          $s | Format-List Name, State, StartMode, PathName
+          if ($s.State -ne 'Running' -or $s.StartMode -ne 'Auto') { exit 1 }
+      - name: Logs
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse "$env:APPDATA\SchuetzSupport\log", "C:\Windows\System32\config\systemprofile\AppData\Roaming\SchuetzSupport\log" -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | ForEach-Object { "== $($_.FullName)"; Get-Content $_.FullName -Tail 60 }
